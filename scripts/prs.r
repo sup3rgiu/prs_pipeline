@@ -172,6 +172,10 @@ load_summary<-function(x, cols, threads) {
   sumstats<-data.frame(bigreadr::fread2(stat_file, nThread=threads, select=select_values))
   colnames(sumstats)<-names_cols
 
+  if ("mlog10p" %in% colnames(sumstats)) {
+    sumstats$p <- 10^(-sumstats$mlog10p)
+  }
+
   if (! "n_eff" %in% colnames(sumstats)) {
 
     sumstats$n_eff<-n_val
