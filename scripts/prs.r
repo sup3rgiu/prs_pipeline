@@ -14,7 +14,6 @@ library(optparse)
 library(tools)
 library(rjson)
 library(crayon)
-library(tools)
 sessionInfo()
 
 # run functions before running the pipeline
@@ -215,12 +214,6 @@ load_bed<-function(x, threads) {
 
   }
 
-  if (!file.exists(rds_file)) {
-      rds_file <- tempfile(fileext = ".rds") # Temporary file to hold the .rds conversion
-      convert_bed_to_rds(bed_file, rds_file, threads=opt$threads)
-      message("[", Sys.time(), "][Message] Converted .bed file converted into temporary .rds file")  
-    }
-
   obj.bigSNP <- snp_attach(rds_file)
   obj.bigSNP
 
@@ -237,7 +230,6 @@ load_bgen<-function(x,threads) {
   bk_file<-file.path(str_replace(bgen_file, ".bgen", ".bk"))
   rds_file<-file.path(str_replace(bgen_file, ".bgen", ".rds"))
   bgi_file<-file.path(str_replace(bgen_file, ".bgen", ".bgen.bgi"))
-  sample_file<-file.path(str_replace(bgen_file, ".bgen", "_s487202.sample")) #TODO: need to fix the hard-coding of s487202
 
   if (!file.exists(bk_file)) {
 
@@ -246,12 +238,6 @@ load_bgen<-function(x,threads) {
     snp_readBGEN(bgen_file, backingfile=backing_file, list_snp_id=snps_ids, ncores=threads, read_as ="dosage")
 
   }
-
-  if (!file.exists(rds_file)) {
-      rds_file <- tempfile(fileext = ".rds") # Temporary file to hold the .rds conversion
-      convert_bgen_to_rds(bgen_file, sample_file, rds_file, threads=opt$threads)
-      message("[", Sys.time(), "][Message] Converted .bgen file converted into temporary .rds file")  
-    }
 
   obj.bigSNP <- snp_attach(rds_file)
   obj.bigSNP
@@ -498,17 +484,6 @@ check_index<-function(x) {
 
 }
 
-convert_bed_to_rds <- function(bed_file, output_rds_file, threads) {
-  backing_file <- str_replace(bed_file, ".bed", "")
-  snp_obj <- snp_readBed2(bed_file, backingfile = backing_file, , ncores=threads)
-  saveRDS(snp_obj, file = output_rds_file)
-}
-
-convert_bgen_to_rds <- function(bgen_file, sample_file, output_rds_file, threads) {
-  snp_obj <- snp_readBGEN(bgen_file, sample_file, ncores = threads)
-  saveRDS(snp_obj, file = output_rds_file)
-}
-
 
 # start the prs script 
 # create the list with all necessary files
@@ -657,20 +632,7 @@ if (has_index) {
   now<-Sys.time()
   message('[',now,'][Message] subsetting to variants in the reference panel provided')
 
-  reference_ext <- file_ext(opt$reference)
-
-  if (reference_ext == "rds") {
-    map_ldref <- readRDS(opt$reference)
-    message("[", Sys.time(), "][Message] Loaded .rds reference panel")
-  } 
-  else if (reference_ext == "bed") {
-    temp_rds_file <- tempfile(fileext = ".rds") # Temporary file to hold the .rds conversion
-    convert_bed_to_rds(opt$reference, temp_rds_file, threads=opt$threads)
-    message("[", Sys.time(), "][Message] Converted .bed reference panel to temporary .rds file")
-    map_ldref <- readRDS(temp_rds_file)
-    message("[", Sys.time(), "][Message] Loaded temporary .rds reference panel")
-  }
-
+  map_ldref <- readRDS(opt$reference)
   map_panel<-map_ldref$map
   map_panel<-map_panel[c("chromosome", "marker.ID", "physical.pos", "allele1", "allele2")]
   colnames(map_panel)<-c("chr", "rsid", "pos", "a1", "a0")
