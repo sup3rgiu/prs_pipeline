@@ -632,7 +632,20 @@ if (has_index) {
   now<-Sys.time()
   message('[',now,'][Message] subsetting to variants in the reference panel provided')
 
-  map_ldref <- readRDS(opt$reference)
+  reference_ext <- file_ext(opt$reference)
+
+  if (reference_ext == "rds") {
+    map_ldref <- readRDS(opt$reference)
+    message("[", Sys.time(), "][Message] Loaded .rds reference panel")
+  } 
+  else if (reference_ext == "bed") {
+    temp_rds_file <- tempfile(fileext = ".rds") # Temporary file to hold the .rds conversion
+    convert_bed_to_rds(opt$reference, temp_rds_file, threads=opt$threads)
+    message("[", Sys.time(), "][Message] Converted .bed reference panel to temporary .rds file")
+    map_ldref <- readRDS(temp_rds_file)
+    message("[", Sys.time(), "][Message] Loaded temporary .rds reference panel")
+  }
+  
   map_panel<-map_ldref$map
   map_panel<-map_panel[c("chromosome", "marker.ID", "physical.pos", "allele1", "allele2")]
   colnames(map_panel)<-c("chr", "rsid", "pos", "a1", "a0")
