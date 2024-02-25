@@ -494,6 +494,7 @@ option_list = list(
   make_option(c('-i', '--input'), action='store', type='character', help='.bed file (with companion .bim and .fam files) or (indexed) .bgen file [required]'),
   make_option(c('-s', '--summary'), action='store', type='character', help='GWAS summary stats or pre-calculated .tsv (with header) containing beta scores [required]'),
   make_option(c('--summarycols'), action='store', type='character', help='.json file defining columns to use'),
+  make_option(c('--filter_SNPs'), action='store', type='character', help='.txt file containing a list of SNPs to be used to filter the summary stats and used in the analysis'),
   make_option(c('-p', '--phenotype'), action='store', type='character', help='.tsv file with phenotype (and also covariates, if any)'),
   make_option(c('--heritability'), action='store', type='numeric', help='heritability, if known'),
   make_option(c('-o', '--output'), action='store', type='character', help='output prefix [required]'),
@@ -591,6 +592,15 @@ stats<-load_summary(opt$summary, opt$summarycols, opt$threads)
 sumstats<-stats[[1]]
 beta_is_precomp<-stats[[2]]
 
+if (!is.null(opt$filter_SNPs)) {
+  message('[',now,'][Message] filter_SNPs has been supplied. Hence, the rsIDs from this file will be read and the sumstats will be filtered to only keep the provided SNPs.')
+  snpIDs <- readLines(opt$filter_SNPs)
+  rsIDs <- trimws(rsIDs) 
+  rsIDs <- rsIDs[rsIDs != ""] 
+  sumstats <- sumstats[sumstats$rsid %in% rsIDs, ]
+  message('[',now,'][Message] sumstats filtering based on the provided list of SNPs: done')
+}
+
 now<-Sys.time()
 message('[',now,'][Message] done')
 message('[',now,'][Message] matching variants between genotype data and summary statistics - or previously computed beta scores')
@@ -645,7 +655,7 @@ if (has_index) {
     map_ldref <- readRDS(temp_rds_file)
     message("[", Sys.time(), "][Message] Loaded temporary .rds reference panel")
   }
-  
+
   map_panel<-map_ldref$map
   map_panel<-map_panel[c("chromosome", "marker.ID", "physical.pos", "allele1", "allele2")]
   colnames(map_panel)<-c("chr", "rsid", "pos", "a1", "a0")
