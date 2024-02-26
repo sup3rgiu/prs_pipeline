@@ -495,7 +495,9 @@ option_list = list(
   make_option(c('-s', '--summary'), action='store', type='character', help='GWAS summary stats or pre-calculated .tsv (with header) containing beta scores [required]'),
   make_option(c('--summarycols'), action='store', type='character', help='.json file defining columns to use'),
   make_option(c('--filter_SNPs'), action='store', type='character', help='.txt file containing a list of SNPs to be used to filter the summary stats and used in the analysis'),
-  make_option(c('-p', '--phenotype'), action='store', type='character', help='.tsv file with phenotype (and also covariates, if any)'),
+  make_option(c('-p', '--phenotype'), action='store', type='character', help='.tsv file with phenotype (first 2 columns could be FID and IID, 3rd column should be the phenotype. If more than 1 phenotype is present, specify the column to be considered using pheno_col)'),
+  make_option(c('--pheno_col'), action='store', type='character', help='If phenotype is provided, but contains more than 1 phenotype, the phenotype that is to be used can be specified here.'),
+  make_option(c('-c', '--covariates'), action='store', type='character', help='.tsv file with covariates (first 2 columns could be FID and IID, 3rd column onwards will be considered as covariates.) If both phenotype and covariates are supplied, first 2 columns must match.'),
   make_option(c('--heritability'), action='store', type='numeric', help='heritability, if known'),
   make_option(c('-o', '--output'), action='store', type='character', help='output prefix [required]'),
   make_option(c('--threads'), action='store', type='numeric', help='computing threads [1]', default=1),
@@ -563,11 +565,43 @@ if (!is.null(opt$phenotype)) {
   message('[',now,'][Message] reading table of phenotypes')
 
   pheno<-data.frame(fread(opt$phenotype))
-  colnames(pheno)<-paste0("V", c(1:ncol(pheno))) #be sure to have proper name for pheno columns
+  
+  if (!is.null(opt$pheno_col)) {
+    message('[',now,'][Message] pheno_col has been supplied. Discarding all the columns except for the first two and pheno_col')
+    pheno_col_index <- which(names(pheno) == opt$pheno_col)
+    pheno <- pheno[, c(1:2, pheno_col_index)]
+  }
 
   now<-Sys.time()
   message('[',now,'][Message] done')
     
+}
+
+if (!is.null(opt$covariates)) {
+  message('[',now,'][Message] reading table of covariates')
+  
+  cov<-data.frame(fread(opt$covariates))
+  
+  if (exists('pheno')) {
+    message('[',now,'][Message] phenotype table is also supplied and has been already read.')
+    message('[',now,'][Message] phenotype table has ', nrow(pheno), ' elements, while covariates table has ',nrow(cov),' elements.')
+    pheno <- merge(pheno, cov, by = names(pheno)[1:2])
+    message('[',now,'][Message] After merging phenotype and covariates tables, there are ', nrow(pheno), ' common elements.')
+  } else {
+    message('[',now,'][Message] phenotype table is not supplied. Considering only the covariates table.')
+    pheno <- cov
+  }
+  
+  now<-Sys.time()
+  message('[',now,'][Message] done')
+}
+
+if (exists('pheno')) {
+  message('[',now,'][Message] read phenotype and/or covariates table(s), and now changing the column names to make them consistent.')
+  colnames(pheno)<-paste0("V", c(1:ncol(pheno))) #be sure to have proper name for pheno columns
+  
+  now<-Sys.time()
+  message('[',now,'][Message] done')
 }
 
 #not tested yet
@@ -925,7 +959,7 @@ fwrite(prs_tab, file=prs_tab_file, col.names=T, row.names=F, sep="\t")
 now<-Sys.time()
 message('[',now,'][Message] done')
 
-if (!is.null(opt$phenotype) & (opt$model != "grid" | beta_is_precomp)) {
+if (exists('pheno') & (opt$model != "grid" | beta_is_precomp)) {
 
   now<-Sys.time()
   message('[',now,'][Message] evaluating model on provided phenotype')
