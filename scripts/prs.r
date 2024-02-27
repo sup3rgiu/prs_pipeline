@@ -230,6 +230,7 @@ load_bgen<-function(x,threads) {
   bk_file<-file.path(str_replace(bgen_file, ".bgen", ".bk"))
   rds_file<-file.path(str_replace(bgen_file, ".bgen", ".rds"))
   bgi_file<-file.path(str_replace(bgen_file, ".bgen", ".bgen.bgi"))
+  sample_file<-file.path(str_replace(bgen_file, ".bgen", ".sample"))
 
   if (!file.exists(bk_file)) {
 
@@ -237,10 +238,16 @@ load_bgen<-function(x,threads) {
     snps_ids<-list(paste(bgi$chromosome, bgi$position, bgi$allele1, bgi$allele2, sep="_")) #do we want this or an external table?
     snp_readBGEN(bgen_file, backingfile=backing_file, list_snp_id=snps_ids, ncores=threads, read_as ="dosage")
 
+  } else {
+      
+      now<-Sys.time()
+      message('[',now,'][Message] .bk file already exists')
   }
 
   obj.bigSNP <- snp_attach(rds_file)
-  obj.bigSNP
+  obj.sample <- bigreadr::fread2(sample_file)
+  obj.sample <- obj.sample[-1, ]
+  list(obj.bigSNP, obj.sample)
 
 }
 
@@ -537,7 +544,9 @@ if (!is_bgen) {
 
 } else {
 
-  obj.bigSNP<-load_bgen(opt$input,threads=opt$threads)
+  obj_bgen<-load_bgen(opt$input,threads=opt$threads)
+  obj.bigSNP<-obj_bgen[[1]]
+  obj.sample<-obj_bgen[[2]]
 
 }
 
@@ -551,7 +560,9 @@ G <- tryCatch({
 if (is_bgen) {
 
   obj.bigSNP$fam <- snp_fake(n = nrow(G), m = 1)$fam
-
+  
+  obj.bigSNP$fam$family.ID <- obj.sample$ID_1
+  obj.bigSNP$fam$sample.ID <- obj.sample$ID_2
 }
 
 CHR <- as.integer(obj.bigSNP$map$chromosome) #this is somehow necessary for .bgen files, not for bed
@@ -628,12 +639,14 @@ beta_is_precomp<-stats[[2]]
 
 if (!is.null(opt$filter_SNPs)) {
   message('[',now,'][Message] filter_SNPs has been supplied. Hence, the rsIDs from this file will be read and the sumstats will be filtered to only keep the provided SNPs.')
-  snpIDs <- readLines(opt$filter_SNPs)
+  rsIDs <- readLines(opt$filter_SNPs)
   rsIDs <- trimws(rsIDs) 
   rsIDs <- rsIDs[rsIDs != ""] 
   sumstats <- sumstats[sumstats$rsid %in% rsIDs, ]
   message('[',now,'][Message] sumstats filtering based on the provided list of SNPs: done')
 }
+
+sumstats$rsid <- sub("_.*", "", sumstats$rsid) #remove the alleles have they are present in the sumstats
 
 now<-Sys.time()
 message('[',now,'][Message] done')
@@ -960,6 +973,9 @@ now<-Sys.time()
 message('[',now,'][Message] done')
 
 if (exists('pheno') & (opt$model != "grid" | beta_is_precomp)) {
+  pheno_prs_tab <- merge(pheno, prs_tab[, c("FID", "IID", "PRED")], by.x = c("V1", "V2"), by.y = c("FID", "IID"))
+  pred <- pheno_prs_tab$PRED
+  pheno <- pheno_prs_tab[, -ncol(pheno_prs_tab)]
 
   now<-Sys.time()
   message('[',now,'][Message] evaluating model on provided phenotype')
