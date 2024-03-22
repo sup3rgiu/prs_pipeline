@@ -199,7 +199,7 @@ if (opt$filtered == 1){
         
       } else {
       
-        ind.max. <- order(sumstats_ordered$p)[1:n_ind_max]
+        ind.max <- order(sumstats_ordered$p)[1:n_ind_max]
       
       }
   
