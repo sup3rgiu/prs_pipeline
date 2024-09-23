@@ -180,15 +180,30 @@ load_summary<-function(x, cols, threads) {
   
 }
 
-load_bed<-function(x, threads) {
+load_bed<-function(x, threads, bk_dir=NULL) {
   
   now<-Sys.time()
   message('[',now,'][Message] reading .bed/.bim/.fam files')
   
+  # bed_file<-file.path(x)
+  # backing_file<-str_replace(bed_file, ".bed", "") #cut extension out
+  # bk_file<-file.path(str_replace(bed_file, ".bed", ".bk"))
+  # rds_file<-file.path(str_replace(bed_file, ".bed", ".rds"))
+
   bed_file<-file.path(x)
-  backing_file<-str_replace(bed_file, ".bed", "") #cut extension out
-  bk_file<-file.path(str_replace(bed_file, ".bed", ".bk"))
-  rds_file<-file.path(str_replace(bed_file, ".bed", ".rds"))
+  bgen_dir<-dirname(bed_file)
+  bed_filename<-basename(bed_file)
+  bed_filename_noext<-str_replace(bed_filename, ".bgen", "") # cut extension out
+  
+  if (!is.null(bk_dir)) {
+      backing_file<-file.path(bk_dir, bed_filename_noext)
+  } else {
+      backing_file<-file.path(bgen_dir, bed_filename_noext)
+  }
+  
+  bk_file<-paste0(backing_file, ".bk")
+  rds_file<-paste0(backing_file, ".rds") 
+  
   
   if (!file.exists(bk_file)) {
     
@@ -202,17 +217,39 @@ load_bed<-function(x, threads) {
 }
 
 
-load_bgen<-function(x,threads,subset_subIDs=NULL) {
+load_bgen<-function(x, threads, subset_subIDs=NULL, bk_dir=NULL, sample_file_suffix=NULL) {
   
   now<-Sys.time()
   message('[',now,'][Message] reading .bgen file')
   
+  # bgen_file<-file.path(x)
+  # backing_file<-str_replace(bgen_file, ".bgen", "") #cut extension out
+  # bk_file<-file.path(str_replace(bgen_file, ".bgen", ".bk"))
+  # rds_file<-file.path(str_replace(bgen_file, ".bgen", ".rds"))
+  # bgi_file<-file.path(str_replace(bgen_file, ".bgen", ".bgen.bgi"))
+  # sample_file<-file.path(str_replace(bgen_file, ".bgen", ".sample"))
+
   bgen_file<-file.path(x)
-  backing_file<-str_replace(bgen_file, ".bgen", "") #cut extension out
-  bk_file<-file.path(str_replace(bgen_file, ".bgen", ".bk"))
-  rds_file<-file.path(str_replace(bgen_file, ".bgen", ".rds"))
+  bgen_dir<-dirname(bgen_file)
+  bgen_filename<-basename(bgen_file)
+  bgen_filename_noext<-str_replace(bgen_filename, ".bgen", "") # cut extension out
+  
+  if (!is.null(bk_dir)) {
+      backing_file<-file.path(bk_dir, bgen_filename_noext)
+  } else {
+      backing_file<-file.path(bgen_dir, bgen_filename_noext)
+  }
+  
+  bk_file<-paste0(backing_file, ".bk")
+  rds_file<-paste0(backing_file, ".rds") 
   bgi_file<-file.path(str_replace(bgen_file, ".bgen", ".bgen.bgi"))
-  sample_file<-file.path(str_replace(bgen_file, ".bgen", ".sample"))
+  
+  if (!is.null(sample_file_suffix)) {
+      sample_filename<-paste0(bgen_filename_noext, sample_file_suffix, '.sample')
+      sample_file<-file.path(bgen_dir, sample_filename)
+  } else {
+      sample_file<-file.path(str_replace(bgen_file, ".bgen", ".sample"))
+  }
 
   if (!is.null(subset_subIDs)) {
 
@@ -225,6 +262,8 @@ load_bgen<-function(x,threads,subset_subIDs=NULL) {
     if (!file.exists(subset_bk_file)) { 
         
       bgi<-snp_readBGI(bgi_file,snp_id=NULL)
+      sorted_idx <- order(as.integer(bgi$chromosome))
+      bgi <- bgi[sorted_idx, ] # Sort bgi dataframe based on the 'chromosome' column
       snps_ids<-list(paste(bgi$chromosome, bgi$position, bgi$allele1, bgi$allele2, sep="_")) #do we want this or an external table?
       sampleIDs<-fread2(sample_file)[-1, ]$ID_2
       ind_row<-sort(match(subset_subIDs, sampleIDs))
@@ -244,6 +283,8 @@ load_bgen<-function(x,threads,subset_subIDs=NULL) {
     if (!file.exists(bk_file)) {
 
       bgi<-snp_readBGI(bgi_file,snp_id=NULL)
+      sorted_idx <- order(as.integer(bgi$chromosome))
+      bgi <- bgi[sorted_idx, ] # Sort bgi dataframe based on the 'chromosome' column
       snps_ids<-list(paste(bgi$chromosome, bgi$position, bgi$allele1, bgi$allele2, sep="_")) #do we want this or an external table?
       snp_readBGEN(bgen_file, backingfile=backing_file, list_snp_id=snps_ids, ncores=threads, read_as ="dosage")
 

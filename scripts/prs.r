@@ -152,7 +152,9 @@ option_list = list(
   make_option(c('--threads'), action='store', type='numeric', help='computing threads [1]', default=1),
   make_option(c('--correlation'), action='store', type='character', help='the correlation matrix provided as a pre-computed .rds object'),
   make_option(c('--reference'), action='store', type='character', help='reference panel in .rds format'),
-  make_option(c('--index'), action='store', type='character', help='indexes for the individuals in the reference panel in .tsv format')
+  make_option(c('--index'), action='store', type='character', help='indexes for the individuals in the reference panel in .tsv format'),
+  make_option(c('--bk_dir'), action='store', type='character', help='directory where the .bk file is located'),
+  make_option(c('--sample_suffix'), action='store', type='character', help='suffix for the .sample file')
   #make_option(c('-t', '--train'), action='store', type='character', help='train percentage for training-testing - internal validation'),
   #make_option(c('-x', '--external'), action='store', type='character', help='external validation set. Comma-separated .bed (or .bgen) and .pheno tsv. .bed should have accompanying .bim and .fam')
 )
@@ -182,11 +184,11 @@ message('[',now,'][Message] reading  .bed/.bgen')
 
 if (!is_bgen) {
 
-  obj.bigSNP<-load_bed(opt$input, threads=opt$threads)
+  obj.bigSNP<-load_bed(opt$input, threads=opt$threads, bk_dir=opt$bk_dir)
 
 } else {
 
-  obj_bgen<-load_bgen(opt$input,threads=opt$threads)
+  obj_bgen<-load_bgen(opt$input, threads=opt$threads, bk_dir=opt$bk_dir, sample_file_suffix=opt$sample_suffix)
   obj.bigSNP<-obj_bgen[[1]]
   obj.sample<-obj_bgen[[2]]
 
